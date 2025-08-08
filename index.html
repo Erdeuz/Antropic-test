@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Productos Comerciales</title>
+    <title>Sistema de Gestión de Productos</title>
     <style>
         * {
             margin: 0;
@@ -41,6 +41,58 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+
+        .user-info {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info.hidden {
+            display: none;
+        }
+
+        .auth-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+
+        .auth-section.hidden {
+            display: none;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .auth-tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
         }
 
         .tabs {
@@ -135,11 +187,19 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            width: 100%;
+            justify-content: center;
         }
 
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-danger {
@@ -156,6 +216,12 @@
 
         .btn-edit:hover {
             box-shadow: 0 8px 25px rgba(84, 160, 255, 0.3);
+        }
+
+        .btn-logout {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            padding: 10px 20px;
+            font-size: 14px;
         }
 
         .products-grid {
@@ -230,6 +296,7 @@
             padding: 10px;
             font-size: 14px;
             justify-content: center;
+            width: auto;
         }
 
         .search-bar {
@@ -292,17 +359,62 @@
             opacity: 0.3;
         }
 
+        .loading {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .loading::after {
+            content: "";
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff4d;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .success-message {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
             }
             
-            .tabs {
+            .tabs, .auth-tabs {
                 flex-direction: column;
             }
             
             .products-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .user-info {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
             }
         }
     </style>
@@ -310,104 +422,197 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📦 Gestión de Productos</h1>
-            <p>Sistema completo para administrar tu catálogo de productos comerciales</p>
+            <h1>🏪 Sistema de Gestión Comercial</h1>
+            <p>Plataforma completa para administrar productos y usuarios</p>
         </div>
 
-        <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('add')">➕ Agregar Producto</button>
-            <button class="tab-button" onclick="switchTab('list')">📋 Lista de Productos</button>
-            <button class="tab-button" onclick="switchTab('stats')">📊 Estadísticas</button>
+        <!-- Información del Usuario Logueado -->
+        <div id="user-info" class="user-info hidden">
+            <div>
+                <strong>👤 <span id="current-user-name">Usuario</span></strong>
+                <br>
+                <small>📧 <span id="current-user-email">email@ejemplo.com</span></small>
+            </div>
+            <button class="btn btn-logout" onclick="logout()">🚪 Cerrar Sesión</button>
         </div>
 
-        <!-- Tab: Agregar Producto -->
-        <div id="add-tab" class="tab-content active">
-            <div class="form-section">
-                <h2>➕ Agregar Nuevo Producto</h2>
-                <form id="product-form">
+        <!-- Sección de Autenticación -->
+        <div id="auth-section" class="auth-section">
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">🔐 Iniciar Sesión</button>
+                <button class="auth-tab" onclick="switchAuthTab('register')">📝 Registrarse</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="auth-form">
+                <h2>🔐 Iniciar Sesión</h2>
+                <div class="error-message" id="login-error"></div>
+                <div class="success-message" id="login-success"></div>
+                
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="login-email">📧 Correo Electrónico</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">🔒 Contraseña</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <button type="submit" class="btn" id="login-btn">
+                        🔐 Iniciar Sesión
+                    </button>
+                </form>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="auth-form" style="display: none;">
+                <h2>📝 Crear Cuenta Nueva</h2>
+                <div class="error-message" id="register-error"></div>
+                <div class="success-message" id="register-success"></div>
+                
+                <form onsubmit="handleRegister(event)">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="name">Nombre del Producto *</label>
-                            <input type="text" id="name" name="name" required>
+                            <label for="register-name">👤 Nombre Completo *</label>
+                            <input type="text" id="register-name" required minlength="2">
                         </div>
                         <div class="form-group">
-                            <label for="price">Precio *</label>
-                            <input type="number" id="price" name="price" step="0.01" min="0" required>
+                            <label for="register-dni">📋 DNI/Cédula *</label>
+                            <input type="text" id="register-dni" required pattern="[0-9]{7,12}" title="Debe contener entre 7 y 12 dígitos">
                         </div>
                     </div>
-                    
+                    <div class="form-group">
+                        <label for="register-email">📧 Correo Electrónico *</label>
+                        <input type="email" id="register-email" required>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="category">Categoría *</label>
-                            <select id="category" name="category" required>
-                                <option value="">Seleccionar categoría</option>
-                                <option value="electronica">Electrónica</option>
-                                <option value="ropa">Ropa y Accesorios</option>
-                                <option value="hogar">Hogar y Jardín</option>
-                                <option value="deportes">Deportes</option>
-                                <option value="libros">Libros</option>
-                                <option value="juguetes">Juguetes</option>
-                                <option value="otros">Otros</option>
-                            </select>
+                            <label for="register-password">🔒 Contraseña *</label>
+                            <input type="password" id="register-password" required minlength="6">
                         </div>
                         <div class="form-group">
-                            <label for="stock">Stock Disponible *</label>
-                            <input type="number" id="stock" name="stock" min="0" required>
+                            <label for="register-confirm-password">🔒 Confirmar Contraseña *</label>
+                            <input type="password" id="register-confirm-password" required minlength="6">
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="description">Descripción</label>
-                        <textarea id="description" name="description" rows="4" placeholder="Describe las características principales del producto..."></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="image">URL de Imagen</label>
-                        <input type="url" id="image" name="image" placeholder="https://ejemplo.com/imagen.jpg">
-                    </div>
-                    
-                    <button type="submit" class="btn">
-                        💾 Guardar Producto
+                    <button type="submit" class="btn" id="register-btn">
+                        📝 Crear Cuenta
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- Tab: Lista de Productos -->
-        <div id="list-tab" class="tab-content">
-            <div class="search-bar">
-                <input type="text" id="search-input" placeholder="🔍 Buscar productos por nombre, categoría o descripción...">
+        <!-- Sistema Principal (oculto hasta login) -->
+        <div id="main-system" class="hidden">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('add')">➕ Agregar Producto</button>
+                <button class="tab-button" onclick="switchTab('list')">📋 Lista de Productos</button>
+                <button class="tab-button" onclick="switchTab('users')">👥 Usuarios</button>
+                <button class="tab-button" onclick="switchTab('stats')">📊 Estadísticas</button>
             </div>
-            
-            <div id="products-container" class="products-grid">
-                <!-- Los productos se cargarán aquí -->
-            </div>
-        </div>
 
-        <!-- Tab: Estadísticas -->
-        <div id="stats-tab" class="tab-content">
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-number" id="total-products">0</div>
-                    <div class="stat-label">Total de Productos</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="total-value">$0</div>
-                    <div class="stat-label">Valor Total del Inventario</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="low-stock">0</div>
-                    <div class="stat-label">Productos con Poco Stock</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number" id="categories-count">0</div>
-                    <div class="stat-label">Categorías Activas</div>
+            <!-- Tab: Agregar Producto -->
+            <div id="add-tab" class="tab-content active">
+                <div class="form-section">
+                    <h2>➕ Agregar Nuevo Producto</h2>
+                    <div class="error-message" id="product-error"></div>
+                    <div class="success-message" id="product-success"></div>
+                    
+                    <form id="product-form" onsubmit="handleProductSubmit(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="name">Nombre del Producto *</label>
+                                <input type="text" id="name" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="price">Precio *</label>
+                                <input type="number" id="price" name="price" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="category">Categoría *</label>
+                                <select id="category" name="category" required>
+                                    <option value="">Seleccionar categoría</option>
+                                    <option value="electronica">Electrónica</option>
+                                    <option value="ropa">Ropa y Accesorios</option>
+                                    <option value="hogar">Hogar y Jardín</option>
+                                    <option value="deportes">Deportes</option>
+                                    <option value="libros">Libros</option>
+                                    <option value="juguetes">Juguetes</option>
+                                    <option value="otros">Otros</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="stock">Stock Disponible *</label>
+                                <input type="number" id="stock" name="stock" min="0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="description">Descripción</label>
+                            <textarea id="description" name="description" rows="4" placeholder="Describe las características principales del producto..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="image">URL de Imagen</label>
+                            <input type="url" id="image" name="image" placeholder="https://ejemplo.com/imagen.jpg">
+                        </div>
+                        
+                        <button type="submit" class="btn" id="product-submit-btn">
+                            💾 Guardar Producto
+                        </button>
+                    </form>
                 </div>
             </div>
-            
-            <div class="form-section">
-                <h3>📊 Distribución por Categorías</h3>
-                <div id="category-distribution"></div>
+
+            <!-- Tab: Lista de Productos -->
+            <div id="list-tab" class="tab-content">
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="🔍 Buscar productos por nombre, categoría o descripción...">
+                </div>
+                
+                <div id="products-container" class="products-grid">
+                    <!-- Los productos se cargarán aquí -->
+                </div>
+            </div>
+
+            <!-- Tab: Usuarios -->
+            <div id="users-tab" class="tab-content">
+                <div class="form-section">
+                    <h2>👥 Usuarios Registrados</h2>
+                    <div id="users-container">
+                        <!-- Los usuarios se cargarán aquí -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Estadísticas -->
+            <div id="stats-tab" class="tab-content">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-products">0</div>
+                        <div class="stat-label">Total de Productos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-users">0</div>
+                        <div class="stat-label">Usuarios Registrados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-value">$0</div>
+                        <div class="stat-label">Valor Total del Inventario</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="low-stock">0</div>
+                        <div class="stat-label">Productos con Poco Stock</div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>📊 Distribución por Categorías</h3>
+                    <div id="category-distribution"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -416,7 +621,7 @@
     <div id="edit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: white; border-radius: 20px; padding: 30px; max-width: 600px; width: 90%; max-height: 90%; overflow-y: auto;">
             <h2>✏️ Editar Producto</h2>
-            <form id="edit-form">
+            <form id="edit-form" onsubmit="handleEditSubmit(event)">
                 <input type="hidden" id="edit-id">
                 <div class="form-row">
                     <div class="form-group">
@@ -465,7 +670,9 @@
     <script>
         // Estado global de la aplicación
         let products = [];
-        let editingProductId = null;
+        let users = [];
+        let currentUser = null;
+        const API_BASE_URL = 'http://localhost:3000/api'; // Cambiar por la URL de tu servidor
 
         // Categorías con emojis
         const categoryEmojis = {
@@ -480,90 +687,269 @@
 
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
-            loadProducts();
+            // Verificar si hay sesión activa
+            checkAuthStatus();
             setupEventListeners();
-            renderProducts();
-            updateStats();
         });
 
         function setupEventListeners() {
-            // Formulario de agregar producto
-            document.getElementById('product-form').addEventListener('submit', handleProductSubmit);
-            
-            // Formulario de editar producto
-            document.getElementById('edit-form').addEventListener('submit', handleEditSubmit);
-            
             // Búsqueda en tiempo real
             document.getElementById('search-input').addEventListener('input', handleSearch);
         }
 
-        function switchTab(tabName) {
-            // Cambiar botones activos
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        // === FUNCIONES DE AUTENTICACIÓN ===
+
+        function switchAuthTab(tab) {
+            // Cambiar tabs activos
+            document.querySelectorAll('.auth-tab').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             
-            // Cambiar contenido activo
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.getElementById(tabName + '-tab').classList.add('active');
+            // Mostrar/ocultar formularios
+            document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
             
-            // Actualizar estadísticas si se cambia a esa pestaña
-            if (tabName === 'stats') {
-                updateStats();
+            // Limpiar mensajes
+            clearMessages();
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const btn = document.getElementById('login-btn');
+            
+            btn.innerHTML = '<span class="loading">Iniciando sesión...</span>';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('currentUser', JSON.stringify(data.user));
+                    
+                    showMainSystem();
+                    loadInitialData();
+                    showMessage('login-success', '✅ Sesión iniciada correctamente');
+                } else {
+                    showMessage('login-error', data.message || '❌ Error al iniciar sesión');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('login-error', '❌ Error de conexión con el servidor');
+            }
+            
+            btn.innerHTML = '🔐 Iniciar Sesión';
+            btn.disabled = false;
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('register-name').value;
+            const dni = document.getElementById('register-dni').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('register-confirm-password').value;
+            const btn = document.getElementById('register-btn');
+            
+            // Validar contraseñas
+            if (password !== confirmPassword) {
+                showMessage('register-error', '❌ Las contraseñas no coinciden');
+                return;
+            }
+            
+            btn.innerHTML = '<span class="loading">Creando cuenta...</span>';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nombre_completo: name,
+                        dni: dni,
+                        email: email,
+                        password: password
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('register-success', '✅ Cuenta creada exitosamente. Puedes iniciar sesión ahora.');
+                    document.getElementById('register-form').querySelector('form').reset();
+                    
+                    // Cambiar a tab de login
+                    setTimeout(() => {
+                        switchAuthTab('login');
+                        document.getElementById('login-email').value = email;
+                    }, 2000);
+                } else {
+                    showMessage('register-error', data.message || '❌ Error al crear la cuenta');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('register-error', '❌ Error de conexión con el servidor');
+            }
+            
+            btn.innerHTML = '📝 Crear Cuenta';
+            btn.disabled = false;
+        }
+
+        function checkAuthStatus() {
+            const token = localStorage.getItem('authToken');
+            const userStr = localStorage.getItem('currentUser');
+            
+            if (token && userStr) {
+                currentUser = JSON.parse(userStr);
+                showMainSystem();
+                loadInitialData();
             }
         }
 
-        function handleProductSubmit(e) {
+        function showMainSystem() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-system').classList.remove('hidden');
+            document.getElementById('user-info').classList.remove('hidden');
+            
+            // Mostrar info del usuario
+            document.getElementById('current-user-name').textContent = currentUser.nombre_completo;
+            document.getElementById('current-user-email').textContent = currentUser.email;
+        }
+
+        function logout() {
+            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                currentUser = null;
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                
+                // Ocultar sistema principal y mostrar auth
+                document.getElementById('main-system').classList.add('hidden');
+                document.getElementById('user-info').classList.add('hidden');
+                document.getElementById('auth-section').classList.remove('hidden');
+                
+                // Limpiar datos
+                products = [];
+                users = [];
+                
+                // Limpiar formularios
+                document.querySelectorAll('form').forEach(form => form.reset());
+                clearMessages();
+                
+                showNotification('👋 Sesión cerrada correctamente', 'success');
+            }
+        }
+
+        // === FUNCIONES DE PRODUCTOS ===
+
+        async function handleProductSubmit(e) {
             e.preventDefault();
             
             const formData = new FormData(e.target);
+            const btn = document.getElementById('product-submit-btn');
+            
             const product = {
-                id: Date.now().toString(),
                 name: formData.get('name'),
                 price: parseFloat(formData.get('price')),
                 category: formData.get('category'),
                 stock: parseInt(formData.get('stock')),
                 description: formData.get('description') || '',
-                image: formData.get('image') || '',
-                createdAt: new Date().toISOString()
+                image: formData.get('image') || ''
             };
             
-            products.push(product);
-            saveProducts();
-            renderProducts();
-            updateStats();
+            btn.innerHTML = '<span class="loading">Guardando...</span>';
+            btn.disabled = true;
             
-            // Limpiar formulario y mostrar mensaje
-            e.target.reset();
-            showNotification('✅ Producto agregado exitosamente', 'success');
+            try {
+                const response = await fetch(`${API_BASE_URL}/products`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify(product),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    products.push(data.product);
+                    renderProducts();
+                    updateStats();
+                    e.target.reset();
+                    showMessage('product-success', '✅ Producto agregado exitosamente');
+                } else {
+                    showMessage('product-error', data.message || '❌ Error al agregar el producto');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('product-error', '❌ Error de conexión con el servidor');
+            }
+            
+            btn.innerHTML = '💾 Guardar Producto';
+            btn.disabled = false;
         }
 
-        function handleEditSubmit(e) {
+        async function handleEditSubmit(e) {
             e.preventDefault();
             
             const productId = document.getElementById('edit-id').value;
-            const productIndex = products.findIndex(p => p.id === productId);
             
-            if (productIndex !== -1) {
-                products[productIndex] = {
-                    ...products[productIndex],
-                    name: document.getElementById('edit-name').value,
-                    price: parseFloat(document.getElementById('edit-price').value),
-                    category: document.getElementById('edit-category').value,
-                    stock: parseInt(document.getElementById('edit-stock').value),
-                    description: document.getElementById('edit-description').value,
-                    image: document.getElementById('edit-image').value
-                };
+            const updatedProduct = {
+                name: document.getElementById('edit-name').value,
+                price: parseFloat(document.getElementById('edit-price').value),
+                category: document.getElementById('edit-category').value,
+                stock: parseInt(document.getElementById('edit-stock').value),
+                description: document.getElementById('edit-description').value,
+                image: document.getElementById('edit-image').value
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify(updatedProduct),
+                });
                 
-                saveProducts();
-                renderProducts();
-                updateStats();
-                closeEditModal();
-                showNotification('✅ Producto actualizado exitosamente', 'success');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const productIndex = products.findIndex(p => p.id === parseInt(productId));
+                    if (productIndex !== -1) {
+                        products[productIndex] = { ...products[productIndex], ...updatedProduct };
+                    }
+                    
+                    renderProducts();
+                    updateStats();
+                    closeEditModal();
+                    showNotification('✅ Producto actualizado exitosamente', 'success');
+                } else {
+                    showNotification(data.message || '❌ Error al actualizar el producto', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('❌ Error de conexión con el servidor', 'error');
             }
         }
 
         function editProduct(productId) {
-            const product = products.find(p => p.id === productId);
+            const product = products.find(p => p.id === parseInt(productId));
             if (!product) return;
             
             document.getElementById('edit-id').value = product.id;
@@ -581,13 +967,50 @@
             document.getElementById('edit-modal').style.display = 'none';
         }
 
-        function deleteProduct(productId) {
+        async function deleteProduct(productId) {
             if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-                products = products.filter(p => p.id !== productId);
-                saveProducts();
-                renderProducts();
+                try {
+                    const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        products = products.filter(p => p.id !== parseInt(productId));
+                        renderProducts();
+                        updateStats();
+                        showNotification('🗑️ Producto eliminado exitosamente', 'success');
+                    } else {
+                        const data = await response.json();
+                        showNotification(data.message || '❌ Error al eliminar el producto', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification('❌ Error de conexión con el servidor', 'error');
+                }
+            }
+        }
+
+        // === FUNCIONES DE INTERFAZ ===
+
+        function switchTab(tabName) {
+            // Cambiar botones activos
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Cambiar contenido activo
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Cargar datos específicos
+            if (tabName === 'stats') {
                 updateStats();
-                showNotification('🗑️ Producto eliminado exitosamente', 'danger');
+            } else if (tabName === 'users') {
+                renderUsers();
+            } else if (tabName === 'list') {
+                renderProducts();
             }
         }
 
@@ -604,7 +1027,7 @@
                 filteredProducts = products.filter(product => 
                     product.name.toLowerCase().includes(searchTerm) ||
                     product.category.toLowerCase().includes(searchTerm) ||
-                    product.description.toLowerCase().includes(searchTerm)
+                    (product.description && product.description.toLowerCase().includes(searchTerm))
                 );
             }
             
@@ -634,7 +1057,8 @@
                         <p><strong>Categoría:</strong> ${categoryEmojis[product.category]} ${product.category.charAt(0).toUpperCase() + product.category.slice(1)}</p>
                         <p><strong>Stock:</strong> ${product.stock} unidades ${product.stock <= 5 ? '⚠️' : '✅'}</p>
                         ${product.description ? `<p><strong>Descripción:</strong> ${product.description}</p>` : ''}
-                        <div class="product-price">$${product.price.toFixed(2)}</div>
+                        <div class="product-price">${product.price.toFixed(2)}</div>
+                        <small>Agregado: ${new Date(product.created_at).toLocaleDateString()}</small>
                     </div>
                     <div class="product-actions">
                         <button class="btn btn-edit" onclick="editProduct('${product.id}')">
@@ -648,6 +1072,44 @@
             `).join('');
         }
 
+        function renderUsers() {
+            const container = document.getElementById('users-container');
+            
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>👥 No hay usuarios para mostrar</h3>
+                        <p>Los usuarios aparecerán aquí cuando se registren</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div style="display: grid; gap: 15px;">
+                    ${users.map(user => `
+                        <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #f8f9fa; display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: center;">
+                            <div>
+                                <strong>👤 ${user.nombre_completo}</strong>
+                                <br><small>DNI: ${user.dni}</small>
+                            </div>
+                            <div>
+                                <strong>📧 ${user.email}</strong>
+                            </div>
+                            <div>
+                                <small>📅 Registrado: ${new Date(user.created_at).toLocaleDateString()}</small>
+                            </div>
+                            <div>
+                                <span style="background: ${user.id === currentUser.id ? '#4CAF50' : '#007bff'}; color: white; padding: 5px 10px; border-radius: 15px; font-size: 12px;">
+                                    ${user.id === currentUser.id ? 'TÚ' : 'USUARIO'}
+                                </span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
         function updateStats() {
             const totalProducts = products.length;
             const totalValue = products.reduce((sum, product) => sum + (product.price * product.stock), 0);
@@ -655,9 +1117,9 @@
             const categories = new Set(products.map(product => product.category));
             
             document.getElementById('total-products').textContent = totalProducts;
-            document.getElementById('total-value').textContent = `$${totalValue.toFixed(2)}`;
+            document.getElementById('total-users').textContent = users.length;
+            document.getElementById('total-value').textContent = `${totalValue.toFixed(2)}`;
             document.getElementById('low-stock').textContent = lowStock;
-            document.getElementById('categories-count').textContent = categories.size;
             
             // Distribución por categorías
             renderCategoryDistribution();
@@ -693,39 +1155,105 @@
             }).join('');
         }
 
-        function saveProducts() {
-            // Como no podemos usar localStorage, mantenemos los productos en memoria
-            // En una aplicación real, esto se enviaría a un servidor
-            console.log('Productos guardados:', products);
+        // === FUNCIONES DE CARGA DE DATOS ===
+
+        async function loadInitialData() {
+            await Promise.all([
+                loadProducts(),
+                loadUsers()
+            ]);
+            
+            renderProducts();
+            updateStats();
         }
 
-        function loadProducts() {
-            // En una aplicación real, esto cargaría los productos desde un servidor
-            // Para demostración, agregamos algunos productos de ejemplo
-            if (products.length === 0) {
+        async function loadProducts() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/products`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    products = data.products || [];
+                } else {
+                    console.error('Error al cargar productos');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // Si no hay conexión, usar datos de ejemplo
                 products = [
                     {
-                        id: '1',
+                        id: 1,
                         name: 'Laptop Gaming',
                         price: 1299.99,
                         category: 'electronica',
                         stock: 15,
                         description: 'Laptop para gaming con RTX 4060 y procesador Intel i7',
                         image: '',
-                        createdAt: new Date().toISOString()
+                        created_at: new Date().toISOString()
                     },
                     {
-                        id: '2',
+                        id: 2,
                         name: 'Camiseta Deportiva',
                         price: 29.99,
                         category: 'ropa',
                         stock: 3,
                         description: 'Camiseta deportiva de alta calidad, transpirable',
                         image: '',
-                        createdAt: new Date().toISOString()
+                        created_at: new Date().toISOString()
                     }
                 ];
             }
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    users = data.users || [];
+                } else {
+                    console.error('Error al cargar usuarios');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // Si no hay conexión, usar datos de ejemplo
+                users = [
+                    {
+                        id: 1,
+                        nombre_completo: 'Admin Usuario',
+                        dni: '12345678',
+                        email: 'admin@ejemplo.com',
+                        created_at: new Date().toISOString()
+                    }
+                ];
+            }
+        }
+
+        // === FUNCIONES DE UTILIDAD ===
+
+        function showMessage(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
+        }
+
+        function clearMessages() {
+            document.querySelectorAll('.error-message, .success-message').forEach(el => {
+                el.style.display = 'none';
+            });
         }
 
         function showNotification(message, type) {
@@ -755,7 +1283,9 @@
             setTimeout(() => {
                 notification.style.transform = 'translateX(400px)';
                 setTimeout(() => {
-                    document.body.removeChild(notification);
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
                 }, 300);
             }, 3000);
         }
